@@ -3,6 +3,6 @@ packages:
   - packages/*
 
 catalog:
-  "@types/node": "^25.3.3"
+  "@types/node": "^26.5.1"
   drizzle-orm: "^0.45.2"
   zod: "^3.25.76"
