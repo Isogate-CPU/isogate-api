@@ -1,0 +1,20 @@
+{
+  "name": "isogate-api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Standalone Isogate API and deterministic replay workspace.",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@10.12.4",
+  "scripts": {
+    "build": "pnpm --filter @isogate/replay build && pnpm --filter @isogate/api-server build",
+    "typecheck": "pnpm --filter @isogate/replay typecheck && pnpm --filter @isogate/api-zod typecheck && pnpm --filter @isogate/db typecheck && pnpm --filter @isogate/api-server typecheck",
+    "test": "pnpm --filter @isogate/replay test"
+  },
+  "pnpm": {
+    "overrides": {
+      "axios": "1.20.0",
+      "js-yaml": "4.3.2"
+    }
+  }
+}

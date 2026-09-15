@@ -1,0 +1,2195 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: replay
+    description: Deterministic CPU replay operations
+  - name: genesis
+    description: Immutable creator-approved genesis recipes
+  - name: providers
+    description: Real compute provider registration and job operations
+  - name: agents
+    description: User-owned deterministic replay agents
+  - name: network
+    description: Public technical-beta network explorer data
+  - name: receipts
+    description: Server-issued technical-beta receipt records
+  - name: verifications
+    description: Server canonical recomputation verification events
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /replays:
+    post:
+      operationId: replayCpu
+      tags: [replay]
+      summary: Replay a deterministic CPU program
+      description: Runs a bounded, stateless CPU replay and returns its trace and digest. This is not an on-chain or cryptographic proof.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReplayInput"
+      responses:
+        "200":
+          description: Replay completed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReplayResult"
+        "400":
+          description: Invalid replay input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/art:
+    post:
+      operationId: generateGenesisArt
+      tags: [replay]
+      summary: Queue a Native Node RGB565 token identity workload
+      description: Queues the built-in cpu_art_rgb565 workload on an online Native Node whose wallet is bound to the creator wallet. A server-only preview never qualifies a token for approval.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenesisArtInput"
+      responses:
+        "201":
+          description: Native Node RGB565 workload queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisArtResult"
+        "400":
+          description: Invalid seed, creator wallet, or provider ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/art/{jobId}:
+    get:
+      operationId: getGenesisArt
+      tags: [replay]
+      summary: Get a Native Node RGB565 workload
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Native Node workload status and verified result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisArtResult"
+        "404":
+          description: Genesis workload not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/art/{jobId}/approve:
+    post:
+      operationId: approveGenesisArt
+      tags: [replay]
+      summary: Approve an exactly verified Native Node identity
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenesisArtApproval"
+      responses:
+        "200":
+          description: Creator approval recorded after verifying a wallet signature bound to the verified Native Node snapshot, canonical PNG digest, chain ID, nonce, and expiry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisArtResult"
+        "403":
+          description: Wallet is not the creator wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Workload is not exactly verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/art/{jobId}/challenge:
+    post:
+      operationId: createGenesisApprovalChallenge
+      tags: [genesis]
+      summary: Create a short-lived creator approval challenge
+      description: Returns a challenge that binds the creator wallet signature to the verified CPU and canonical PNG snapshot, metadata hashes, and Robinhood Chain ID 4663.
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenesisApprovalChallengeRequest"
+      responses:
+        "200":
+          description: Short-lived approval challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisApprovalChallenge"
+        "400":
+          description: Invalid workload ID or creator wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Genesis workload not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Wallet is not the creator wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Workload is not exactly verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/art/{jobId}/upload:
+    post:
+      operationId: uploadGenesisArtifact
+      tags: [genesis]
+      summary: Upload an approved canonical genesis PNG to IPFS
+      description: Idempotently uploads only the persisted creator-approved snapshot. A persisted CID is never replaced.
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Current approved genesis artifact and upload status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisArtResult"
+        "404":
+          description: Approved genesis recipe not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: IPFS upload failed; retry this endpoint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/art/{jobId}/png:
+    get:
+      operationId: downloadGenesisPng
+      tags: [genesis]
+      summary: Download the server-generated canonical genesis PNG
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Canonical 512x512 PNG
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Approved genesis recipe not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/approved/{walletAddress}:
+    get:
+      operationId: getApprovedGenesisRecipe
+      tags: [genesis]
+      parameters:
+        - $ref: "#/components/parameters/GenesisWalletAddress"
+      responses:
+        "200":
+          description: Immutable approved genesis recipe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovedGenesisRecipe"
+        "400":
+          description: Invalid wallet address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: No approved recipe for this wallet
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/launches/reconcile:
+    post:
+      operationId: reconcileGenesisLaunch
+      tags: [genesis]
+      summary: Reconcile and index a completed Genesis launch
+      description: Verifies both successful Robinhood Chain transactions and all configured Genesis contract mappings, events, immutable token metadata, and fee-vault wiring before persisting public metadata. Client addresses and metadata are never trusted.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GenesisLaunchReconcileInput"
+      responses:
+        "200":
+          description: Existing or newly reconciled launch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisLaunch"
+        "202":
+          description: On-chain launch verified; public source indexing is still pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisLaunchIndexingPending"
+        "400":
+          description: Invalid transaction hashes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Transactions do not describe a valid supported Genesis launch or conflict with an indexed launch
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Chain verification unavailable or failed closed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/launches:
+    get:
+      operationId: listGenesisLaunches
+      tags: [genesis]
+      summary: List public Genesis launches
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+      responses:
+        "200":
+          description: Newest indexed public Genesis launches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisLaunchList"
+        "502":
+          description: Chain fee-vault reads unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/launches/{tokenAddress}:
+    get:
+      operationId: getGenesisLaunch
+      tags: [genesis]
+      summary: Get one public Genesis launch
+      parameters:
+        - $ref: "#/components/parameters/GenesisTokenAddress"
+      responses:
+        "200":
+          description: Public Genesis launch with live creator fee balances
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisLaunch"
+        "400":
+          description: Invalid token address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Genesis launch not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Chain fee-vault reads unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/creators/{walletAddress}/launches:
+    get:
+      operationId: listCreatorGenesisLaunches
+      tags: [genesis]
+      summary: List a creator's public Genesis launches
+      parameters:
+        - $ref: "#/components/parameters/GenesisWalletAddress"
+      responses:
+        "200":
+          description: Creator dashboard launches with live creator fee balances
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisLaunchList"
+        "400":
+          description: Invalid creator wallet address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Chain fee-vault reads unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /genesis/deployment-proof/readiness:
+    get:
+      operationId: getGenesisDeploymentProofReadiness
+      tags: [genesis]
+      summary: Check server Genesis deployment-proof readiness
+      responses:
+        "200":
+          description: Deployment proof signer and reviewed wiring are ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisDeploymentReadiness"
+        "503":
+          description: Server deployment proof is fail-closed and unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisDeploymentReadiness"
+  /genesis/art/{jobId}/deployment-proof:
+    post:
+      operationId: issueGenesisDeploymentProof
+      tags: [genesis]
+      summary: Issue an idempotent server Genesis deployment proof
+      description: Signs exact IdentityProof EIP-712 data only after artifact immutability and Robinhood dependency wiring checks. Addresses are server configuration, never client input.
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Current or newly issued short-lived deployment proof
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GenesisDeploymentProof"
+        "404":
+          description: Approved uploaded recipe not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Recipe is not ready for proof issuance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "503":
+          description: Server signer or reviewed deployment wiring is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: getGenesisDeploymentProof
+      tags: [genesis]
+      summary: Get persisted Genesis deployment-proof status
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Persisted proof or null before readiness
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [deploymentProof]
+                properties:
+                  deploymentProof:
+                    oneOf:
+                      - $ref: "#/components/schemas/GenesisDeploymentProof"
+                      - type: "null"
+        "404":
+          description: Approved recipe not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers:
+    post:
+      operationId: registerProvider
+      tags: [providers]
+      summary: Register a real compute provider report
+      description: Registers a provider and returns a one-time credential. The credential is shown only in this response, is stored server-side only as a hash, and must be supplied from process memory for provider control operations. Native Node processes do not persist it; re-register after a process restart. This credential is not wallet ownership.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderRegistration"
+      responses:
+        "201":
+          description: Provider registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderRegistrationResponse"
+        "400":
+          description: Invalid or altered report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agents:
+    post:
+      operationId: registerAgent
+      tags: [agents]
+      summary: Register a user-owned deterministic replay agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentRegistrationInput"
+      responses:
+        "201":
+          description: Agent registered with a one-time credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentRegistration"
+        "400":
+          description: Invalid agent registration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agents/{agentId}:
+    get:
+      operationId: getAgent
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/AgentCredential"
+      responses:
+        "200":
+          description: Private agent details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+        "401":
+          description: Missing or invalid agent credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agents/{agentId}/wallet/challenge:
+    post:
+      operationId: createAgentWalletChallenge
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/AgentCredential"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentWalletRequest"
+      responses:
+        "200":
+          description: Short-lived wallet challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentWalletChallenge"
+        "400":
+          description: Invalid wallet address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid agent credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Agent credential changed while issuing challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agents/{agentId}/wallet/bind:
+    post:
+      operationId: bindAgentWallet
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/AgentCredential"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentWalletBinding"
+      responses:
+        "200":
+          description: Wallet-bound agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+        "400":
+          description: Invalid or expired wallet challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid agent credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Wallet challenge is no longer available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agents/{agentId}/policy:
+    patch:
+      operationId: updateAgentPolicy
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/AgentCredential"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentPolicyInput"
+      responses:
+        "200":
+          description: Updated agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Agent"
+        "400":
+          description: Invalid or expired policy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid agent credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Agent policy changed concurrently
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agents/{agentId}/jobs:
+    post:
+      operationId: submitAgentJob
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/AgentCredential"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AgentJobInput"
+      responses:
+        "201":
+          description: Provider job queued for the agent
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderJob"
+        "400":
+          description: Invalid or disallowed job
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid agent credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent or provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Agent or provider is not eligible
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agents/{agentId}/events:
+    get:
+      operationId: listAgentEvents
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/AgentCredential"
+      responses:
+        "200":
+          description: Latest agent audit events
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items:
+                  $ref: "#/components/schemas/AgentEvent"
+        "401":
+          description: Missing or invalid agent credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agents/{agentId}/credential/rotate:
+    post:
+      operationId: rotateAgentCredential
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/AgentCredential"
+      responses:
+        "200":
+          description: Replacement agent credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AgentCredentialRotation"
+        "401":
+          description: Missing or invalid agent credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Agent credential changed while rotating
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /agents/{agentId}/credential/revoke:
+    post:
+      operationId: revokeAgentCredential
+      tags: [agents]
+      parameters:
+        - $ref: "#/components/parameters/AgentId"
+        - $ref: "#/components/parameters/AgentCredential"
+      responses:
+        "204":
+          description: Agent credential revoked
+        "401":
+          description: Missing or invalid agent credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Agent credential changed while revoking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}:
+    get:
+      operationId: getProvider
+      tags: [providers]
+      summary: Get provider status and capabilities
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+      responses:
+        "200":
+          description: Provider status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComputeProvider"
+        "404":
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid provider ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}/heartbeat:
+    post:
+      operationId: heartbeatProvider
+      tags: [providers]
+      summary: Mark a provider online
+      description: Authenticated provider heartbeat. The one-time registration credential must be sent in X-Isogate-Provider-Credential.
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+        - $ref: "#/components/parameters/ProviderCredential"
+      responses:
+        "200":
+          description: Provider heartbeat accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComputeProvider"
+        "404":
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid provider ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}/wallet/challenge:
+    post:
+      operationId: createProviderWalletChallenge
+      tags: [providers]
+      summary: Create a short-lived wallet ownership challenge
+      description: Requires the current provider credential. The returned Robinhood Chain challenge must be signed by the requested wallet using personal_sign.
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+        - $ref: "#/components/parameters/ProviderCredential"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderWalletRequest"
+      responses:
+        "200":
+          description: Short-lived wallet challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderWalletChallenge"
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid provider ID or wallet address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Provider credentials changed while issuing the challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}/wallet/bind:
+    post:
+      operationId: bindProviderWallet
+      tags: [providers]
+      summary: Verify a wallet signature and bind it to a provider
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+        - $ref: "#/components/parameters/ProviderCredential"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderWalletBinding"
+      responses:
+        "200":
+          description: Wallet-bound provider
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComputeProvider"
+        "400":
+          description: Invalid or expired signature challenge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Wallet challenge is no longer available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}/credential/rotate:
+    post:
+      operationId: rotateProviderCredential
+      tags: [providers]
+      summary: Rotate a provider control credential
+      description: Requires the current provider credential. Returns the replacement credential once; only its SHA-256 hash is stored.
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+        - $ref: "#/components/parameters/ProviderCredential"
+      responses:
+        "200":
+          description: Rotated provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderCredentialRotation"
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid provider ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Provider credentials changed while rotating
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}/credential/revoke:
+    post:
+      operationId: revokeProviderCredential
+      tags: [providers]
+      summary: Revoke provider control access
+      description: Requires the current provider credential and immediately disables heartbeat, claim, completion, wallet binding, and rotation.
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+        - $ref: "#/components/parameters/ProviderCredential"
+      responses:
+        "204":
+          description: Provider credential revoked
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid provider ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Provider credentials changed while revoking
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "429":
+          description: Too many requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}/jobs:
+    post:
+      operationId: runProviderJob
+      tags: [providers]
+      summary: Queue a bounded deterministic provider job for a native provider
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+        - $ref: "#/components/parameters/ProviderCredential"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderJobInput"
+      responses:
+        "201":
+          description: Provider job queued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderJob"
+        "400":
+          description: Invalid job input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Provider wallet ownership is not bound
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}/jobs/next:
+    get:
+      operationId: claimProviderJob
+      tags: [providers]
+      summary: Claim the next queued native provider job
+      description: Authenticated provider control operation. The one-time registration credential must be sent in X-Isogate-Provider-Credential.
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+        - $ref: "#/components/parameters/ProviderCredential"
+      responses:
+        "200":
+          description: Assigned job or no available work
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ProviderJobClaim"
+                  - type: "null"
+        "400":
+          description: Invalid provider ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Provider not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}/jobs/{jobId}:
+    get:
+      operationId: getProviderJob
+      tags: [providers]
+      summary: Get the current state of a provider job
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+        - $ref: "#/components/parameters/JobId"
+        - $ref: "#/components/parameters/ProviderCredential"
+      responses:
+        "200":
+          description: Provider job state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderJob"
+        "404":
+          description: Provider job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "400":
+          description: Invalid provider or job ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /providers/{providerId}/jobs/{jobId}/complete:
+    post:
+      operationId: completeProviderJob
+      tags: [providers]
+      summary: Submit a native result for deterministic verification
+      description: Authenticated provider control operation. The one-time registration credential must be sent in X-Isogate-Provider-Credential.
+      parameters:
+        - $ref: "#/components/parameters/ProviderId"
+        - $ref: "#/components/parameters/JobId"
+        - $ref: "#/components/parameters/ProviderCredential"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProviderJobCompletion"
+      responses:
+        "200":
+          description: Native result verified and stored
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProviderJob"
+        "400":
+          description: Result does not match the assigned workload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Provider job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Missing or invalid provider credential
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "409":
+          description: Provider job lease is stale, expired, or already finalized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /network/summary:
+    get:
+      operationId: getNetworkSummary
+      tags: [network]
+      summary: Get public network summary
+      description: Public technical-beta counts derived from registered providers and Native Node jobs.
+      responses:
+        "200":
+          description: Public network summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NetworkSummary"
+  /network/providers:
+    get:
+      operationId: listNetworkProviders
+      tags: [network]
+      summary: List public network providers
+      description: Public technical-beta provider records, newest registration first. Native reports are not exposed.
+      responses:
+        "200":
+          description: Public provider records
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items:
+                  $ref: "#/components/schemas/ComputeProvider"
+  /network/jobs:
+    get:
+      operationId: listNetworkJobs
+      tags: [network]
+      summary: List public network jobs
+      description: Public technical-beta job records, newest first. Native provider reports are not exposed.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [completed, rejected]
+      responses:
+        "200":
+          description: Public job records
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items:
+                  $ref: "#/components/schemas/PublicNetworkJob"
+  /network/jobs/{jobId}:
+    get:
+      operationId: getNetworkJob
+      tags: [network]
+      summary: Get a public network job
+      description: Public technical-beta job detail. A result is returned only when it is already stored on the job.
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Public job detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicNetworkJob"
+        "404":
+          description: Job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /receipts/{jobId}:
+    get:
+      operationId: getJobReceipt
+      tags: [receipts]
+      summary: Get a server-issued technical-beta receipt
+      description: Returns a deterministic receipt for a completed Native Node job.
+      parameters:
+        - $ref: "#/components/parameters/JobId"
+      responses:
+        "200":
+          description: Server-issued receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JobReceipt"
+        "404":
+          description: Completed job receipt not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /verifications:
+    post:
+      operationId: createVerification
+      tags: [verifications]
+      summary: Canonically verify a completed job
+      description: Recomputes a completed Native Node job with the server canonical engine and records the comparison.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerificationInput"
+      responses:
+        "201":
+          description: Verification event recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VerificationEvent"
+        "400":
+          description: Invalid verification request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Completed job not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    get:
+      operationId: listVerifications
+      tags: [verifications]
+      summary: List verification events
+      description: Returns the newest 100 server canonical verification events.
+      responses:
+        "200":
+          description: Verification events
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 100
+                items:
+                  $ref: "#/components/schemas/VerificationEvent"
+components:
+  parameters:
+    GenesisWalletAddress:
+      name: walletAddress
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^0x[a-fA-F0-9]{40}$"
+    GenesisTokenAddress:
+      name: tokenAddress
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^0x[a-fA-F0-9]{40}$"
+    AgentId:
+      name: agentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AgentCredential:
+      name: X-Isogate-Agent-Credential
+      in: header
+      required: true
+      description: One-time credential returned by agent registration.
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 128
+    ProviderId:
+      name: providerId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    JobId:
+      name: jobId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ProviderCredential:
+      name: X-Isogate-Provider-Credential
+      in: header
+      required: true
+      description: One-time credential returned by provider registration. Keep it in process memory and re-register after a Native Node restart. This is not wallet ownership.
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 128
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ReplayInput:
+      type: object
+      additionalProperties: false
+      properties:
+        inputs:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items:
+            type: integer
+            minimum: 0
+            maximum: 255
+        cycles:
+          type: integer
+          minimum: 1
+          maximum: 32
+          default: 32
+      required:
+        - inputs
+    GenesisArtInput:
+      type: object
+      additionalProperties: false
+      required: [seed, providerId, creatorWalletAddress]
+      properties:
+        providerId: { type: string, format: uuid }
+        creatorWalletAddress:
+          type: string
+          pattern: "^0x[a-fA-F0-9]{40}$"
+        seed:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items:
+            type: integer
+            minimum: 0
+            maximum: 255
+    GenesisArtResult:
+      type: object
+      description: Native Node workload status. The result is present only after exact server recomputation verification.
+      additionalProperties: false
+      required: [jobId, providerId, workload, creatorWalletAddress, status, verificationStatus, seed, result, eligibleForApproval, creatorApprovedAt, approved, createdAt, completedAt, ipfsCid, pngDigest, uploadStatus, uploadStartedAt, uploadedAt, logoUri]
+      properties:
+        jobId: { type: string, format: uuid }
+        providerId: { type: string, format: uuid }
+        workload: { type: string, enum: [cpu_art_rgb565] }
+        creatorWalletAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        status: { type: string, enum: [queued, assigned, completed, rejected] }
+        verificationStatus: { type: string, enum: [queued, verified, mismatch, failed, expired] }
+        eligibleForApproval: { type: boolean }
+        creatorApprovedAt: { type: ["string", "null"], format: date-time }
+        approved: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+        ipfsCid: { type: ["string", "null"] }
+        pngDigest: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$" }
+        uploadStatus: { type: ["string", "null"], enum: [pending, uploading, uploaded, failed] }
+        uploadStartedAt: { type: ["string", "null"], format: date-time }
+        uploadedAt: { type: ["string", "null"], format: date-time }
+        logoUri: { type: ["string", "null"] }
+        result:
+          oneOf:
+            - $ref: "#/components/schemas/CanonicalGenesisArt"
+            - type: "null"
+        seed:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items: { type: integer, minimum: 0, maximum: 255 }
+    GenesisArtApproval:
+      type: object
+      additionalProperties: false
+      required: [creatorWalletAddress, chainId, expiresAt, nonce, signature]
+      properties:
+        creatorWalletAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        chainId: { type: integer, enum: [4663] }
+        expiresAt: { type: string, format: date-time }
+        nonce: { type: string, minLength: 32, maxLength: 128 }
+        signature: { type: string, pattern: "^0x[a-fA-F0-9]+$" }
+    GenesisApprovalChallengeRequest:
+      type: object
+      additionalProperties: false
+      required: [creatorWalletAddress]
+      properties:
+        creatorWalletAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+    GenesisApprovalChallenge:
+      type: object
+      additionalProperties: false
+      required: [jobId, providerId, creatorWalletAddress, chainId, protocolVersion, pngDigest, tokenNameHash, symbolHash, descriptionHash, seedHash, cpuDigest, imageDigest, nonce, message, expiresAt]
+      properties:
+        jobId: { type: string, format: uuid }
+        providerId: { type: string, format: uuid }
+        creatorWalletAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        chainId: { type: integer, enum: [4663] }
+        protocolVersion: { type: string, enum: [isogate-genesis-approval-v2] }
+        pngDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+        tokenNameHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        symbolHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        descriptionHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        seedHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        cpuDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+        imageDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+        nonce: { type: string, minLength: 32, maxLength: 128 }
+        message: { type: string, minLength: 1 }
+        expiresAt: { type: string, format: date-time }
+    CanonicalGenesisArt:
+      type: object
+      additionalProperties: false
+      required: [engine, cpuEngine, colorModel, width, height, bitsPerPixel, cyclesPerPixel, seed, tokenName, symbol, description, pixels, cpuDigest, imageDigest]
+      properties:
+        engine: { type: string, enum: [isogate-cpu-art-rgb565-v1] }
+        cpuEngine: { type: string, enum: [isogate-deterministic-replay-v1] }
+        colorModel: { type: string, enum: [RGB565] }
+        width: { type: integer, enum: [16] }
+        height: { type: integer, enum: [16] }
+        bitsPerPixel: { type: integer, enum: [16] }
+        cyclesPerPixel: { type: integer, enum: [32] }
+        seed:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items: { type: integer, minimum: 0, maximum: 255 }
+        tokenName: { type: string, minLength: 6, maxLength: 16 }
+        symbol: { type: string, pattern: "^[A-Z2-9]{6}$" }
+        description: { type: string, minLength: 20, maxLength: 160 }
+        pixels:
+          type: array
+          minItems: 256
+          maxItems: 256
+          items: { type: integer, minimum: 0, maximum: 65535 }
+        cpuDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+        imageDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+    NativeRuntime:
+      type: object
+      additionalProperties: false
+      required: [platform, release, architecture, architectureFamily, nodeVersion]
+      properties:
+        platform: { type: string, minLength: 1, maxLength: 32 }
+        release: { type: string, minLength: 1, maxLength: 128 }
+        architecture: { type: string, minLength: 1, maxLength: 32 }
+        architectureFamily: { type: string, minLength: 1, maxLength: 64 }
+        nodeVersion: { type: string, minLength: 1, maxLength: 32 }
+    NativeCpu:
+      type: object
+      additionalProperties: false
+      required: [vendor, model, logicalProcessors, reportedMhz]
+      properties:
+        vendor: { type: string, minLength: 1, maxLength: 32 }
+        model: { type: string, minLength: 1, maxLength: 256 }
+        logicalProcessors: { type: integer, minimum: 1, maximum: 4096 }
+        reportedMhz: { type: ["integer", "null"], minimum: 1, maximum: 100000 }
+    NativeMemory:
+      type: object
+      additionalProperties: false
+      required: [totalBytes, freeBytes]
+      properties:
+        totalBytes: { type: integer, minimum: 1 }
+        freeBytes: { type: integer, minimum: 0 }
+    NativeBenchmark:
+      type: object
+      additionalProperties: false
+      required: [algorithm, iterations, durationMs, operationsPerSecond, digest]
+      properties:
+        algorithm: { type: string, enum: [SHA-256] }
+        iterations: { type: integer, minimum: 1000, maximum: 2000000 }
+        durationMs: { type: number, exclusiveMinimum: 0 }
+        operationsPerSecond: { type: integer, minimum: 1 }
+        digest: { type: string, pattern: "^[a-f0-9]{64}$" }
+    NativeCpuReport:
+      type: object
+      additionalProperties: false
+      required: [schemaVersion, capturedAt, runtime, cpu, memory, benchmark, reportDigest]
+      properties:
+        schemaVersion: { type: integer, enum: [1] }
+        capturedAt: { type: string, format: date-time }
+        runtime: { $ref: "#/components/schemas/NativeRuntime" }
+        cpu: { $ref: "#/components/schemas/NativeCpu" }
+        memory: { $ref: "#/components/schemas/NativeMemory" }
+        benchmark: { $ref: "#/components/schemas/NativeBenchmark" }
+        reportDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+    ProviderRegistration:
+      type: object
+      additionalProperties: false
+      required: [report]
+      properties:
+        report: { $ref: "#/components/schemas/NativeCpuReport" }
+    ProviderRegistrationResponse:
+      type: object
+      description: Registration response containing the public provider record and a one-time credential. The credential is never included in public provider or network records and is not wallet ownership.
+      additionalProperties: false
+      required: [provider, credential]
+      properties:
+        provider:
+          $ref: "#/components/schemas/ComputeProvider"
+        credential:
+          type: string
+          minLength: 32
+          maxLength: 128
+    AgentRegistrationInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 64 }
+        description: { type: string, maxLength: 240 }
+    AgentPolicyInput:
+      type: object
+      additionalProperties: false
+      required: [enabled, operation, maxCycles, maxInputs, expiresAt]
+      properties:
+        enabled: { type: boolean }
+        operation: { type: string, enum: [cpu_replay] }
+        maxCycles: { type: integer, minimum: 1, maximum: 32 }
+        maxInputs:
+          type: integer
+          minimum: 8
+          maximum: 8
+          description: Isogate CPU replay currently requires exactly eight byte inputs.
+        expiresAt: { type: ["string", "null"], format: date-time }
+    AgentPolicy:
+      allOf:
+        - $ref: "#/components/schemas/AgentPolicyInput"
+    Agent:
+      type: object
+      additionalProperties: false
+      required: [id, name, description, status, ownerWalletAddress, ownerWalletBoundAt, policy, policyVersion, policyHash, createdAt, updatedAt, lastSeenAt, revokedAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string, minLength: 1, maxLength: 64 }
+        description: { type: ["string", "null"], maxLength: 240 }
+        status: { type: string, enum: [active, offline, revoked] }
+        ownerWalletAddress: { type: ["string", "null"], pattern: "^0x[a-fA-F0-9]{40}$" }
+        ownerWalletBoundAt: { type: ["string", "null"], format: date-time }
+        policy: { $ref: "#/components/schemas/AgentPolicy" }
+        policyVersion: { type: integer, minimum: 1 }
+        policyHash: { type: string, pattern: "^[a-f0-9]{64}$" }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+        revokedAt: { type: ["string", "null"], format: date-time }
+    AgentRegistration:
+      type: object
+      additionalProperties: false
+      required: [agent, credential]
+      properties:
+        agent: { $ref: "#/components/schemas/Agent" }
+        credential: { type: string, minLength: 32, maxLength: 128 }
+    AgentWalletRequest:
+      type: object
+      additionalProperties: false
+      required: [walletAddress]
+      properties:
+        walletAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+    AgentWalletChallenge:
+      type: object
+      additionalProperties: false
+      required: [message, address, chainId, expiresAt]
+      properties:
+        message: { type: string, minLength: 1, maxLength: 2048 }
+        address: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        chainId: { type: integer, enum: [4663] }
+        expiresAt: { type: string, format: date-time }
+    AgentWalletBinding:
+      type: object
+      additionalProperties: false
+      required: [walletAddress, message, signature]
+      properties:
+        walletAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        message: { type: string, minLength: 1, maxLength: 2048 }
+        signature: { type: string, minLength: 1, maxLength: 2048 }
+    AgentJobInput:
+      type: object
+      additionalProperties: false
+      required: [providerId, inputs, cycles]
+      properties:
+        providerId: { type: string, format: uuid }
+        inputs:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items: { type: integer, minimum: 0, maximum: 255 }
+        cycles: { type: integer, minimum: 1, maximum: 32 }
+    AgentEvent:
+      type: object
+      additionalProperties: false
+      required: [id, type, providerJobId, metadata, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        type: { type: string, minLength: 1, maxLength: 64 }
+        providerJobId: { type: ["string", "null"], format: uuid }
+        metadata: { type: object, additionalProperties: true }
+        createdAt: { type: string, format: date-time }
+    AgentCredentialRotation:
+      type: object
+      additionalProperties: false
+      required: [credential]
+      properties:
+        credential: { type: string, minLength: 32, maxLength: 128 }
+    ComputeProvider:
+      type: object
+      description: Public technical-beta provider record. This record describes Native Node execution and is not a wallet identity or reward claim.
+      required: [id, status, reportDigest, cpuVendor, cpuModel, architecture, logicalProcessors, walletAddress, walletBoundAt, registeredAt, lastSeenAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [online, offline] }
+        reportDigest: { type: string }
+        cpuVendor: { type: string }
+        cpuModel: { type: string }
+        architecture: { type: string }
+        logicalProcessors: { type: integer }
+        walletAddress:
+          type: ["string", "null"]
+          pattern: "^0x[a-fA-F0-9]{40}$"
+        walletBoundAt: { type: ["string", "null"], format: date-time }
+        registeredAt: { type: string, format: date-time }
+        lastSeenAt: { type: string, format: date-time }
+    ProviderJobInput:
+      type: object
+      additionalProperties: false
+      required: [inputs]
+      properties:
+        workload: { type: string, enum: [cpu_replay, cpu_art_rgb565], default: cpu_replay }
+        creatorWalletAddress:
+          type: ["string", "null"]
+          pattern: "^0x[a-fA-F0-9]{40}$"
+        inputs:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items: { type: integer, minimum: 0, maximum: 255 }
+        cycles: { type: integer, minimum: 1, maximum: 32, default: 32 }
+    ProviderJob:
+      type: object
+      description: Public technical-beta provider job record. Native Node reports are not included.
+      required: [id, providerId, agentId, agentPolicyHash, workload, creatorWalletAddress, verificationStatus, creatorApprovedAt, status, inputs, cycles, createdAt, assignedAt, leaseExpiresAt, attemptCount, completedAt, result]
+      properties:
+        id: { type: string, format: uuid }
+        providerId: { type: string, format: uuid }
+        agentId: { type: ["string", "null"], format: uuid }
+        agentPolicyHash: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$" }
+        workload: { type: string, enum: [cpu_replay, cpu_art_rgb565] }
+        creatorWalletAddress: { type: ["string", "null"], pattern: "^0x[a-fA-F0-9]{40}$" }
+        verificationStatus: { type: string, enum: [queued, verified, mismatch, failed, expired] }
+        creatorApprovedAt: { type: ["string", "null"], format: date-time }
+        status: { type: string, enum: [queued, assigned, completed, rejected] }
+        inputs:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { type: integer, minimum: 0, maximum: 255 }
+        cycles: { type: integer, minimum: 1, maximum: 32 }
+        createdAt: { type: string, format: date-time }
+        assignedAt: { type: ["string", "null"], format: date-time }
+        leaseExpiresAt: { type: ["string", "null"], format: date-time }
+        attemptCount: { type: integer, minimum: 0 }
+        completedAt: { type: ["string", "null"], format: date-time }
+        result:
+          oneOf:
+            - $ref: "#/components/schemas/ReplayResult"
+            - $ref: "#/components/schemas/CanonicalGenesisArt"
+            - type: "null"
+    PublicNetworkJob:
+      type: object
+      description: Publicly visible redacted job status. Inputs, results, leases, and agent attribution are private.
+      additionalProperties: false
+      required: [id, providerId, status, cycles, createdAt, completedAt]
+      properties:
+        id: { type: string, format: uuid }
+        providerId: { type: string, format: uuid }
+        status: { type: string, enum: [completed, rejected] }
+        cycles: { type: integer, minimum: 1, maximum: 32 }
+        createdAt: { type: string, format: date-time }
+        completedAt: { type: ["string", "null"], format: date-time }
+    ProviderJobClaim:
+      allOf:
+        - $ref: "#/components/schemas/ProviderJob"
+        - type: object
+          required: [leaseToken]
+          properties:
+            leaseToken:
+              type: string
+              minLength: 32
+              maxLength: 128
+    ProviderJobCompletion:
+      type: object
+      additionalProperties: false
+      required: [leaseToken, result]
+      properties:
+        leaseToken:
+          type: string
+          minLength: 32
+          maxLength: 128
+        result:
+          oneOf:
+            - $ref: "#/components/schemas/ReplayResult"
+            - $ref: "#/components/schemas/CanonicalGenesisArt"
+    ProviderWalletRequest:
+      type: object
+      additionalProperties: false
+      required: [walletAddress]
+      properties:
+        walletAddress:
+          type: string
+          pattern: "^0x[a-fA-F0-9]{40}$"
+    ProviderWalletChallenge:
+      type: object
+      additionalProperties: false
+      required: [message, expiresAt, chainId]
+      properties:
+        message: { type: string, minLength: 32, maxLength: 1000 }
+        expiresAt: { type: string, format: date-time }
+        chainId: { type: integer, enum: [4663] }
+    ProviderWalletBinding:
+      type: object
+      additionalProperties: false
+      required: [walletAddress, message, signature]
+      properties:
+        walletAddress:
+          type: string
+          pattern: "^0x[a-fA-F0-9]{40}$"
+        message: { type: string, minLength: 32, maxLength: 1000 }
+        signature:
+          type: string
+          pattern: "^0x[a-fA-F0-9]{130}$"
+    ProviderCredentialRotation:
+      type: object
+      additionalProperties: false
+      required: [credential]
+      properties:
+        credential: { type: string, minLength: 32, maxLength: 128 }
+    NetworkSummary:
+      type: object
+      description: Public technical-beta counts for Native Node execution.
+      additionalProperties: false
+      required: [providerCount, onlineProviderCount, jobs, totalVerifiedJobs]
+      properties:
+        providerCount: { type: integer, minimum: 0 }
+        onlineProviderCount: { type: integer, minimum: 0 }
+        jobs:
+          type: object
+          additionalProperties: false
+          required: [queued, assigned, completed, rejected]
+          properties:
+            queued: { type: integer, minimum: 0 }
+            assigned: { type: integer, minimum: 0 }
+            completed: { type: integer, minimum: 0 }
+            rejected: { type: integer, minimum: 0 }
+        totalVerifiedJobs: { type: integer, minimum: 0 }
+    JobReceipt:
+      type: object
+      description: A server-issued technical-beta receipt for Native Node execution.
+      additionalProperties: false
+      required: [receiptId, jobId, providerId, agentId, agentPolicyHash, agentPolicyVersion, agentOwnerWalletAddress, engine, digestAlgorithm, resultDigest, inputs, cycles, createdAt, assignedAt, completedAt, verificationMethod, verificationStatus]
+      properties:
+        receiptId: { type: string, minLength: 1, maxLength: 128 }
+        jobId: { type: string, format: uuid }
+        providerId: { type: string, format: uuid }
+        agentId: { type: ["string", "null"], format: uuid }
+        agentPolicyHash: { type: ["string", "null"], pattern: "^[a-f0-9]{64}$" }
+        agentPolicyVersion: { type: ["integer", "null"], minimum: 1 }
+        agentOwnerWalletAddress: { type: ["string", "null"], pattern: "^0x[a-fA-F0-9]{40}$" }
+        engine: { type: string }
+        digestAlgorithm: { type: string, enum: [SHA-256] }
+        resultDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+        inputs:
+          type: array
+          minItems: 1
+          maxItems: 8
+          items: { type: integer, minimum: 0, maximum: 255 }
+        cycles: { type: integer, minimum: 1, maximum: 32 }
+        createdAt: { type: string, format: date-time }
+        assignedAt: { type: ["string", "null"], format: date-time }
+        completedAt: { type: string, format: date-time }
+        verificationMethod: { type: string, enum: [server-canonical-recomputation] }
+        verificationStatus: { type: string, enum: [accepted] }
+    VerificationInput:
+      type: object
+      additionalProperties: false
+      required: [jobId]
+      properties:
+        jobId: { type: string, format: uuid }
+    VerificationEvent:
+      type: object
+      description: A persisted server canonical recomputation event for Native Node execution.
+      additionalProperties: false
+      required: [id, jobId, status, digest, checkedAt]
+      properties:
+        id: { type: string, format: uuid }
+        jobId: { type: string, format: uuid }
+        status: { type: string, enum: [match, mismatch] }
+        digest: { type: string, pattern: "^[a-f0-9]{64}$" }
+        checkedAt: { type: string, format: date-time }
+    CpuState:
+      type: object
+      properties:
+        cycle:
+          type: integer
+        pc:
+          type: integer
+        accumulator:
+          type: integer
+        ram:
+          type: integer
+        zero:
+          type: boolean
+        carry:
+          type: boolean
+        halted:
+          type: boolean
+      required: [cycle, pc, accumulator, ram, zero, carry, halted]
+    TraceFrame:
+      allOf:
+        - $ref: "#/components/schemas/CpuState"
+        - type: object
+          properties:
+            lane:
+              type: integer
+            input:
+              type: integer
+            operation:
+              type: string
+              enum: [LOAD, ADD, XOR, ROTATE]
+          required: [lane, input, operation]
+    ReplayResult:
+      type: object
+      properties:
+        engine:
+          type: string
+        digestAlgorithm:
+          type: string
+          enum: [SHA-256]
+        digest:
+          type: string
+          pattern: "^[a-f0-9]{64}$"
+        inputs:
+          type: array
+          items:
+            type: integer
+        requestedCycles:
+          type: integer
+        finalState:
+          $ref: "#/components/schemas/CpuState"
+        outputs:
+          type: array
+          items:
+            type: integer
+        checkpoints:
+          type: array
+          items:
+            type: integer
+        trace:
+          type: array
+          items:
+            $ref: "#/components/schemas/TraceFrame"
+      required: [engine, digestAlgorithm, digest, inputs, requestedCycles, finalState, outputs, checkpoints, trace]
+    GenesisDeploymentProof:
+      type: object
+      additionalProperties: false
+      required: [providerJobRef, providerRef, creator, factory, protocol, tokenName, symbol, descriptionHash, engineHash, seedHash, cpuDigest, imageDigest, logoUri, expiry, nonce, signature, digest, verifier, issuedAt, status]
+      properties:
+        providerJobRef: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        providerRef: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        creator: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        factory: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        protocol: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        tokenName: { type: string, minLength: 2, maxLength: 32 }
+        symbol: { type: string, pattern: "^[A-Z0-9]{2,10}$" }
+        descriptionHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        engineHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        seedHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        cpuDigest: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        imageDigest: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        logoUri: { type: string, minLength: 1, maxLength: 256 }
+        expiry: { type: string, pattern: "^[0-9]+$" }
+        nonce: { type: string, pattern: "^[0-9]+$" }
+        signature: { type: string, pattern: "^0x[a-fA-F0-9]+$" }
+        digest: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        verifier: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        issuedAt: { type: string, format: date-time }
+        status: { type: string, enum: [issued, expired, reconciled, failed] }
+    GenesisDeploymentReadiness:
+      type: object
+      additionalProperties: false
+      required: [ready, reason, chainId]
+      properties:
+        ready: { type: boolean }
+        reason: { type: string }
+        chainId: { type: integer, enum: [4663] }
+    GenesisLaunchReconcileInput:
+      type: object
+      additionalProperties: false
+      required: [version, deploymentTxHash, launchTxHash]
+      properties:
+        version:
+          type: string
+          enum: [v1, v2]
+        deploymentTxHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        launchTxHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+    GenesisLaunch:
+      type: object
+      additionalProperties: false
+      required: [version, chainId, creatorWalletAddress, genesisDigest, tokenAddress, feeVaultAddress, hookAddress, positionLockAddress, poolId, positionTokenId, tokenName, symbol, logoUri, logoCid, deploymentTxHash, deploymentBlockNumber, deploymentBlockHash, deploymentTimestamp, launchTxHash, launchBlockNumber, launchBlockHash, launchTimestamp, creatorNativeDue, creatorWethDue, creatorGenesisTokenDue, explorer]
+      properties:
+        version: { type: string, enum: [v1, v2] }
+        chainId: { type: integer, enum: [4663] }
+        creatorWalletAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        genesisDigest: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        tokenAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        feeVaultAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        hookAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        positionLockAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        poolId: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        positionTokenId: { type: string, pattern: "^[0-9]+$" }
+        tokenName: { type: string }
+        symbol: { type: string }
+        logoUri: { type: string, pattern: "^ipfs://.+" }
+        logoCid: { type: string, minLength: 1 }
+        deploymentTxHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        deploymentBlockNumber: { type: string, pattern: "^[0-9]+$" }
+        deploymentBlockHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        deploymentTimestamp: { type: string, format: date-time }
+        launchTxHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        launchBlockNumber: { type: string, pattern: "^[0-9]+$" }
+        launchBlockHash: { type: string, pattern: "^0x[a-fA-F0-9]{64}$" }
+        launchTimestamp: { type: string, format: date-time }
+        creatorNativeDue: { type: string, pattern: "^[0-9]+$" }
+        creatorWethDue: { type: string, pattern: "^[0-9]+$" }
+        creatorGenesisTokenDue: { type: string, pattern: "^[0-9]+$" }
+        explorer:
+          type: object
+          additionalProperties: false
+          required: [token, deploymentTx, launchTx]
+          properties:
+            token: { type: string, format: uri }
+            deploymentTx: { type: string, format: uri }
+            launchTx: { type: string, format: uri }
+    GenesisLaunchIndexingPending:
+      type: object
+      additionalProperties: false
+      required: [status, onChain, sourcify, scanners]
+      properties:
+        status: { type: string, enum: [pending_indexing] }
+        onChain: { type: string, enum: [verified] }
+        sourcify:
+          type: object
+          additionalProperties: false
+          required: [token, hook]
+          properties:
+            token: { type: string, enum: [pending, exact_match] }
+            hook: { type: string, enum: [pending, exact_match] }
+        scanners:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [name, token, hook]
+            properties:
+              name: { type: string }
+              token: { type: string, enum: [pending, exact_match] }
+              hook: { type: string, enum: [pending, exact_match] }
+    GenesisLaunchList:
+      type: object
+      additionalProperties: false
+      required: [items, page, limit, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/GenesisLaunch"
+        page: { type: integer, minimum: 1 }
+        limit: { type: integer, minimum: 1, maximum: 100 }
+        total: { type: integer, minimum: 0 }
+    ApprovedGenesisRecipe:
+      type: object
+      additionalProperties: false
+      required: [id, providerJobId, providerId, walletAddress, tokenName, symbol, description, seed, pixels, engineVersion, cycles, cpuDigest, imageDigest, logoUri, deploymentProof, approvedAt, ipfsCid, pngDigest, uploadStatus, uploadStartedAt, uploadedAt]
+      properties:
+        id: { type: string, format: uuid }
+        providerJobId: { type: string, format: uuid }
+        providerId: { type: string, format: uuid }
+        walletAddress: { type: string, pattern: "^0x[a-fA-F0-9]{40}$" }
+        tokenName: { type: string, minLength: 2, maxLength: 32 }
+        symbol: { type: string, pattern: "^[A-Z0-9]{2,10}$" }
+        description: { type: string, minLength: 1, maxLength: 256 }
+        seed:
+          type: array
+          minItems: 8
+          maxItems: 8
+          items: { type: integer, minimum: 0, maximum: 255 }
+        pixels:
+          type: array
+          minItems: 256
+          maxItems: 256
+          items: { type: integer, minimum: 0, maximum: 65535 }
+        engineVersion: { type: string, minLength: 1, maxLength: 64 }
+        cycles: { type: integer, enum: [32] }
+        cpuDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+        imageDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+        logoUri: { type: ["string", "null"], minLength: 1, maxLength: 256 }
+        ipfsCid: { type: ["string", "null"] }
+        pngDigest: { type: string, pattern: "^[a-f0-9]{64}$" }
+        uploadStatus: { type: string, enum: [pending, uploading, uploaded, failed] }
+        uploadStartedAt: { type: ["string", "null"], format: date-time }
+        uploadedAt: { type: ["string", "null"], format: date-time }
+        deploymentProof:
+          oneOf:
+            - $ref: "#/components/schemas/GenesisDeploymentProof"
+            - type: "null"
+        approvedAt: { type: string, format: date-time }
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error

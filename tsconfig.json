@@ -1,0 +1,9 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/replay" },
+    { "path": "./packages/api-zod" },
+    { "path": "./packages/db" },
+    { "path": "./apps/api-server" }
+  ]
+}
