@@ -13,8 +13,8 @@ catalogs:
       specifier: ^0.45.2
       version: 0.45.2
     zod:
-      specifier: ^3.25.76
-      version: 3.25.76
+      specifier: ^4.6.2
+      version: 4.6.5
 
 overrides:
   axios: 1.20.0
@@ -55,7 +55,7 @@ importers:
         version: 10.5.0
       viem:
         specifier: 2.56.3
-        version: 2.56.3(typescript@6.0.3)(zod@3.25.76)
+        version: 2.56.3(typescript@6.0.3)(zod@4.6.5)
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -86,13 +86,13 @@ importers:
     devDependencies:
       orval:
         specifier: ^8.30.0
-        version: 8.33.0(typescript@6.0.3)(zod@3.25.76)
+        version: 8.33.0(typescript@6.0.3)(zod@4.6.5)
 
   packages/api-zod:
     dependencies:
       zod:
         specifier: 'catalog:'
-        version: 3.25.76
+        version: 4.6.5
 
   packages/db:
     dependencies:
@@ -101,13 +101,13 @@ importers:
         version: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)
       drizzle-zod:
         specifier: ^0.8.3
-        version: 0.8.3(drizzle-orm@0.45.2(@types/pg@8.23.1)(pg@8.23.0))(zod@3.25.76)
+        version: 0.8.3(drizzle-orm@0.45.2(@types/pg@8.23.1)(pg@8.23.0))(zod@4.6.5)
       pg:
         specifier: ^8.23.0
         version: 8.23.0
       zod:
         specifier: 'catalog:'
-        version: 3.25.76
+        version: 4.6.5
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
@@ -1747,8 +1747,8 @@ packages:
     resolution: {integrity: sha512-xYqdZFUK/VYazNl/oCDYN+3WloWQwMfZxBoiNt6qNyk+xfOdi598muWE42rNZFp1kNOiqW936q5RhUdnpqElSg==}
     engines: {node: '>=18'}
 
-  zod@3.25.76:
-    resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+  zod@4.6.5:
+    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
 
 snapshots:
 
@@ -2059,10 +2059,10 @@ snapshots:
       - supports-color
       - typescript
 
-  '@orval/hono@8.33.0(typescript@6.0.3)(zod@3.25.76)':
+  '@orval/hono@8.33.0(typescript@6.0.3)(zod@4.6.5)':
     dependencies:
       '@orval/core': 8.33.0(typescript@6.0.3)
-      '@orval/zod': 8.33.0(typescript@6.0.3)(zod@3.25.76)
+      '@orval/zod': 8.33.0(typescript@6.0.3)(zod@4.6.5)
       fs-extra: 11.4.0
     optionalDependencies:
       typescript: 6.0.3
@@ -2071,11 +2071,11 @@ snapshots:
       - supports-color
       - zod
 
-  '@orval/mcp@8.33.0(typescript@6.0.3)(zod@3.25.76)':
+  '@orval/mcp@8.33.0(typescript@6.0.3)(zod@4.6.5)':
     dependencies:
       '@orval/core': 8.33.0(typescript@6.0.3)
       '@orval/fetch': 8.33.0(typescript@6.0.3)
-      '@orval/zod': 8.33.0(typescript@6.0.3)(zod@3.25.76)
+      '@orval/zod': 8.33.0(typescript@6.0.3)(zod@4.6.5)
     transitivePeerDependencies:
       - '@faker-js/faker'
       - supports-color
@@ -2127,13 +2127,13 @@ snapshots:
       - supports-color
       - typescript
 
-  '@orval/zod@8.33.0(typescript@6.0.3)(zod@3.25.76)':
+  '@orval/zod@8.33.0(typescript@6.0.3)(zod@4.6.5)':
     dependencies:
       '@orval/core': 8.33.0(typescript@6.0.3)
       jsesc: 3.1.0
       remeda: 2.50.0
     optionalDependencies:
-      zod: 3.25.76
+      zod: 4.6.5
     transitivePeerDependencies:
       - '@faker-js/faker'
       - supports-color
@@ -2276,10 +2276,10 @@ snapshots:
 
   '@types/unist@3.0.3': {}
 
-  abitype@1.2.3(typescript@6.0.3)(zod@3.25.76):
+  abitype@1.2.3(typescript@6.0.3)(zod@4.6.5):
     optionalDependencies:
       typescript: 6.0.3
-      zod: 3.25.76
+      zod: 4.6.5
 
   accepts@2.0.0:
     dependencies:
@@ -2399,10 +2399,10 @@ snapshots:
       '@types/pg': 8.23.1
       pg: 8.23.0
 
-  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@types/pg@8.23.1)(pg@8.23.0))(zod@3.25.76):
+  drizzle-zod@0.8.3(drizzle-orm@0.45.2(@types/pg@8.23.1)(pg@8.23.0))(zod@4.6.5):
     dependencies:
       drizzle-orm: 0.45.2(@types/pg@8.23.1)(pg@8.23.0)
-      zod: 3.25.76
+      zod: 4.6.5
 
   dunder-proto@1.0.1:
     dependencies:
@@ -2783,7 +2783,7 @@ snapshots:
     dependencies:
       wrappy: 1.0.2
 
-  orval@8.33.0(typescript@6.0.3)(zod@3.25.76):
+  orval@8.33.0(typescript@6.0.3)(zod@4.6.5):
     dependencies:
       '@commander-js/extra-typings': 15.0.0(commander@15.0.0)
       '@orval/angular': 8.33.0(typescript@6.0.3)
@@ -2791,14 +2791,14 @@ snapshots:
       '@orval/core': 8.33.0(typescript@6.0.3)
       '@orval/effect': 8.33.0(typescript@6.0.3)
       '@orval/fetch': 8.33.0(typescript@6.0.3)
-      '@orval/hono': 8.33.0(typescript@6.0.3)(zod@3.25.76)
-      '@orval/mcp': 8.33.0(typescript@6.0.3)(zod@3.25.76)
+      '@orval/hono': 8.33.0(typescript@6.0.3)(zod@4.6.5)
+      '@orval/mcp': 8.33.0(typescript@6.0.3)(zod@4.6.5)
       '@orval/mock': 8.33.0(typescript@6.0.3)
       '@orval/pinia-colada': 8.33.0(typescript@6.0.3)
       '@orval/query': 8.33.0(typescript@6.0.3)
       '@orval/solid-start': 8.33.0(typescript@6.0.3)
       '@orval/swr': 8.33.0(typescript@6.0.3)
-      '@orval/zod': 8.33.0(typescript@6.0.3)(zod@3.25.76)
+      '@orval/zod': 8.33.0(typescript@6.0.3)(zod@4.6.5)
       '@scalar/json-magic': 0.12.20
       '@scalar/openapi-parser': 0.28.16
       '@scalar/openapi-types': 0.9.4
@@ -2832,7 +2832,7 @@ snapshots:
       - typescript
       - zod
 
-  ox@0.14.44(typescript@6.0.3)(zod@3.25.76):
+  ox@0.14.44(typescript@6.0.3)(zod@4.6.5):
     dependencies:
       '@adraffy/ens-normalize': 1.11.1
       '@noble/ciphers': 1.3.0
@@ -2840,7 +2840,7 @@ snapshots:
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@6.0.3)(zod@3.25.76)
+      abitype: 1.2.3(typescript@6.0.3)(zod@4.6.5)
       eventemitter3: 5.0.1
     optionalDependencies:
       typescript: 6.0.3
@@ -3159,15 +3159,15 @@ snapshots:
 
   vary@1.1.2: {}
 
-  viem@2.56.3(typescript@6.0.3)(zod@3.25.76):
+  viem@2.56.3(typescript@6.0.3)(zod@4.6.5):
     dependencies:
       '@noble/curves': 1.9.1
       '@noble/hashes': 1.8.0
       '@scure/bip32': 1.7.0
       '@scure/bip39': 1.6.0
-      abitype: 1.2.3(typescript@6.0.3)(zod@3.25.76)
+      abitype: 1.2.3(typescript@6.0.3)(zod@4.6.5)
       isows: 1.0.7(ws@8.21.0)
-      ox: 0.14.44(typescript@6.0.3)(zod@3.25.76)
+      ox: 0.14.44(typescript@6.0.3)(zod@4.6.5)
       ws: 8.21.0
     optionalDependencies:
       typescript: 6.0.3
@@ -3192,4 +3192,4 @@ snapshots:
 
   yoctocolors@2.2.0: {}
 
-  zod@3.25.76: {}
+  zod@4.6.5: {}
